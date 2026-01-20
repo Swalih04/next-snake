@@ -35,7 +35,7 @@ jobs:
     - name: Download task definition
       run: |
         aws ecs describe-task-definition \
-          --task-definition interntaskdefinition ${{ secrets.ECS_TASK_FAMILY }} \
+          --task-definition ${{ secrets.ECS_TASK_FAMILY }} \
           --query taskDefinition > task-def.json
 
     - name: Create new task definition revision
