@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -34,18 +35,27 @@ jobs:
     - name: Download task definition
       run: |
         aws ecs describe-task-definition \
-          --task-definition ${{ secrets.ECS_TASK_FAMILY }} \
+          --task-definition interntaskdefinition ${{ secrets.ECS_TASK_FAMILY }} \
           --query taskDefinition > task-def.json
 
-    - name: Update task definition image
+    - name: Create new task definition revision
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       run: |
-        cat task-def.json | jq '.containerDefinitions[0].image="'${{ steps.login-ecr.outputs.registry }}'/${{ secrets.ECR_REPOSITORY }}:latest"' \
-        | jq 'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)' \
-        > new-task-def.json
+        jq '.containerDefinitions[0].image="'"$ECR_REGISTRY"'/'"$ECR_REPOSITORY"':latest"' task-def.json \
+        | jq 'del(
+            .taskDefinitionArn,
+            .revision,
+            .status,
+            .requiresAttributes,
+            .compatibilities,
+            .registeredAt,
+            .registeredBy
+          )' > new-task-def.json
 
-    - name: Register new task definition
-      run: |
-        aws ecs register-task-definition --cli-input-json file://new-task-def.json
+        aws ecs register-task-definition \
+          --cli-input-json file://new-task-def.json
 
     - name: Deploy ECS service
       run: |
